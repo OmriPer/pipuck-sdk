@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pipuck-sdk"
+version = "0.1.0"
+description = "Pi-puck SDK for e-puck2 and peripherals"
+readme = "README.md"
+authors = [{ name = "Omri" }]
+requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+  "smbus2>=0.4.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/OmriPer/pipuck-sdk"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
