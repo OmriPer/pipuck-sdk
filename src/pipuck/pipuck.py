@@ -1,7 +1,5 @@
 """PiPuck peripherals aggregator (pipuck-sdk)."""
 
-from __future__ import annotations
-
 from typing import Optional
 
 from .epuck2 import Epuck2, SensorFrame, ROB_ADDR

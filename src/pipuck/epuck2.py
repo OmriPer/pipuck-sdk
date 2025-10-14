@@ -3,8 +3,7 @@
 High-level I2C control of e-puck2 via Pi-puck.
 """
 
-from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 from smbus2 import SMBus, i2c_msg
 
 I2C_CHANNEL = 12
@@ -30,28 +29,27 @@ def _xor_checksum(buf: bytearray, length: int) -> int:
         c ^= buf[i]
     return c & 0xFF
 
-
-@dataclass
-class SensorFrame:
-    prox: List[int]
-    ambient: List[int]
-    mic: List[int]
-    selector: int
-    button: int
-    motor_steps: List[int]
-    tv: int
-    raw: bytes
+class SensorFrame(object):
+    def __init__(self, prox, ambient, mic, selector, button, motor_steps, tv, raw):
+        self.prox = prox
+        self.ambient = ambient
+        self.mic = mic
+        self.selector = selector
+        self.button = button
+        self.motor_steps = motor_steps
+        self.tv = tv
+        self.raw = raw
 
 
 class Epuck2:
     def __init__(self, i2c_channel: Optional[int] = None, address: int = ROB_ADDR, auto_fallback: bool = True):
         self.address = address
-        self._bus: Optional[SMBus] = None
+        self._bus = None # type: Optional[SMBus]
         self._i2c_channel_requested = i2c_channel
         self._auto_fallback = auto_fallback
         self._act = bytearray([0] * ACTUATORS_SIZE)
         self._sens = bytearray([0] * SENSORS_SIZE)
-        self._last_frame: Optional[SensorFrame] = None
+        self._last_frame = None # type: Optional[SensorFrame]
 
     def open(self) -> None:
         if self._bus is not None:
@@ -65,7 +63,7 @@ class Epuck2:
             channels = [I2C_CHANNEL]
             if self._auto_fallback:
                 channels.append(LEGACY_I2C_CHANNEL)
-        last_err: Optional[Exception] = None
+        last_err = None # type: Optional[Exception]
         for ch in channels:
             try:
                 self._bus = SMBus(ch)
@@ -75,7 +73,9 @@ class Epuck2:
                 self._bus = None
                 continue
         if last_err:
-            raise RuntimeError(f"Cannot open I2C device on channels {channels}: {last_err}")
+            raise RuntimeError(
+                "Cannot open I2C device on channels {}: {}".format(channels, last_err)
+                )
 
     def close(self) -> None:
         if self._bus is not None:
