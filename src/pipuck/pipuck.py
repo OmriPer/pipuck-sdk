@@ -19,7 +19,7 @@ class PiPuck:
         self.open()
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: ANN001
+    def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
 
     def update(self, *args, **kwargs) -> SensorFrame:

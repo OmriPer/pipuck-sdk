@@ -129,6 +129,7 @@ class Epuck2:
     def calibrate_proximity(self, enable: bool = True) -> None:
         self._set_settings_bit(0, enable)
 
+    # currently not implemented on Epuck2 firmware
     def set_onboard_avoidance(self, enable: bool) -> None:
         self._set_settings_bit(1, enable)
 
