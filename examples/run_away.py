@@ -32,10 +32,7 @@ from pipuck import PiPuck
 # Tunables (can be overridden by CLI)
 FWD_SPEED = 300
 TURN_SPEED = 300
-MIN_PROX_TO_REACT = 50
-
-# UI/terminal behavior: render every loop
-
+MIN_PROX_TO_REACT = 100
 
 def _configure_terminal() -> list:
     fd = sys.stdin.fileno()
@@ -168,7 +165,7 @@ def main() -> None:
                 # Vector-based mixing: vx sets forward/back, vy sets steering
                 rad = math.radians(angle_deg)
                 vx = -math.cos(rad)  # +1 forward, -1 backward
-                vy = math.sin(rad)  # + left, - right
+                vy = -math.sin(rad)  # + left, - right
                 # If this still steers the wrong way on your hardware, try: vy = -vy
                 left = int(FWD_SPEED * vx - TURN_SPEED * vy)
                 right = int(FWD_SPEED * vx + TURN_SPEED * vy)
