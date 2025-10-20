@@ -24,6 +24,8 @@ setup(
     packages=find_packages(where="src"),
     install_requires=[
         "smbus2>=0.4.2",
+        "numpy>=1.15",
+        "opencv-python>=3.4"
     ],
     include_package_data=True,
 )
