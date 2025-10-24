@@ -40,6 +40,20 @@ class SensorFrame(object):
         self.tv = tv
         self.raw = raw
 
+    def __repr__(self) -> str:
+        return (
+            "SensorFrame(prox={}, ambient={}, mic={}, selector={}, button={}, motor_steps={}, tv={})"
+            .format(
+                self.prox,
+                self.ambient,
+                self.mic,
+                self.selector,
+                self.button,
+                self.motor_steps,
+                self.tv,
+            )
+        )
+
 
 class Epuck2:
     def __init__(self, i2c_channel: Optional[int] = None, address: int = ROB_ADDR, auto_fallback: bool = True):
@@ -122,6 +136,10 @@ class Epuck2:
         self._act[o] = max(0, min(100, int(r)))
         self._act[o + 1] = max(0, min(100, int(g)))
         self._act[o + 2] = max(0, min(100, int(b)))
+
+    def set_rgb_leds(self, r: int, g: int, b: int) -> None:
+        for index in [2, 4, 6, 8]:
+            self.set_rgb_led(index, r, g, b)
 
     def set_settings(self, value: int) -> None:
         self._act[18] = int(value) & 0x07
