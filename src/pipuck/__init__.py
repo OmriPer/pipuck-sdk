@@ -5,5 +5,6 @@ Exports main classes for convenience.
 
 from .epuck2 import Epuck2, SensorFrame
 from .pipuck import PiPuck
+from .swarm import Swarm, SwarmCommand, SwarmMember, SwarmAgent
 
-__all__ = ["Epuck2", "PiPuck", "SensorFrame"]
+__all__ = ["Epuck2", "PiPuck", "SensorFrame", "Swarm", "SwarmCommand", "SwarmMember", "SwarmAgent"]

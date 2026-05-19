@@ -25,5 +25,10 @@ setup(
     install_requires=[
         "smbus2>=0.4.2",
     ],
+    entry_points={
+        "console_scripts": [
+            "pipuck-swarm=pipuck.swarm_cli:main",
+        ],
+    },
     include_package_data=True,
 )
