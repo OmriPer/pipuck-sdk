@@ -315,9 +315,11 @@ class SwarmAgent:
             self._plan_lock.release()
 
     def _execute_plan(self, plan: List[SwarmCommand]) -> None:
+        from .epuck2 import ROB_ADDR
         from .pipuck import PiPuck
 
-        with PiPuck(i2c_channel=self.i2c_channel, address=self.i2c_address or 0x1F) as pi:
+        address = ROB_ADDR if self.i2c_address is None else self.i2c_address
+        with PiPuck(i2c_channel=self.i2c_channel, address=address) as pi:
             bot = pi.epuck2
             try:
                 for cmd in plan:
