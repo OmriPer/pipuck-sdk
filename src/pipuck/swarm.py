@@ -6,7 +6,9 @@ import socketserver
 import threading
 import time
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union, cast
+
+from .skills import get_skill_handler
 
 
 DEFAULT_DISCOVERY_PORT = 64530
@@ -15,6 +17,7 @@ PROTOCOL_VERSION = 1
 DISCOVERY_MESSAGE = {"type": "discover", "service": "pipuck-swarm", "version": PROTOCOL_VERSION}
 ANNOUNCE_TYPE = "announce"
 RUN_PLAN_TYPE = "run_plan"
+ACTIVATE_SKILL_TYPE = "activate_skill"
 
 
 @dataclass(frozen=True)
@@ -177,6 +180,50 @@ class Swarm:
         targets = self.discover()
         return self.send_plan(targets, plan, wait=wait, timeout=timeout)
 
+    def send_skill(
+        self,
+        targets: Iterable[Union[SwarmMember, Tuple[str, int], str]],
+        skill_name: str,
+        parameters: Optional[dict] = None,
+        wait: bool = False,
+        timeout: Optional[float] = None,
+    ) -> dict:
+        """Send a skill activation command to targets.
+        
+        Args:
+            targets: Target devices
+            skill_name: Name of skill to activate (e.g., 'goCharge')
+            parameters: Optional skill parameters as dict
+            wait: If True, wait for skill completion before returning
+            timeout: Socket timeout for communication
+        
+        Returns:
+            Dict mapping target key -> response
+        """
+        payload = {
+            "type": ACTIVATE_SKILL_TYPE,
+            "version": PROTOCOL_VERSION,
+            "skill": skill_name,
+            "parameters": parameters or {},
+            "wait": bool(wait),
+        }
+        results = {}
+        for target in targets:
+            member = self._coerce_target(target)
+            results[member.key()] = self._send_request(member, payload, timeout=timeout)
+        return results
+
+    def broadcast_skill(
+        self,
+        skill_name: str,
+        parameters: Optional[dict] = None,
+        wait: bool = False,
+        timeout: Optional[float] = None,
+    ) -> dict:
+        """Broadcast a skill activation to all discovered devices."""
+        targets = self.discover()
+        return self.send_skill(targets, skill_name, parameters=parameters, wait=wait, timeout=timeout)
+
     def resolve_targets(self, members: Sequence[SwarmMember], selectors: Sequence[str]) -> List[SwarmMember]:
         resolved = []
         seen = set()
@@ -330,9 +377,34 @@ class SwarmAgent:
                 bot.set_wheel_speeds(0, 0)
                 bot.update()
 
+    def _handle_skill_request(self, payload: dict) -> dict:
+        """Dispatch skill requests to appropriate handlers."""
+        if payload.get("version") not in (None, PROTOCOL_VERSION):
+            return {"ok": False, "error": "unsupported version"}
+
+        skill_name = payload.get("skill", "")
+        parameters = payload.get("parameters", {})
+        wait = bool(payload.get("wait"))
+
+        handler = get_skill_handler(skill_name)
+        if handler is None:
+            return {"ok": False, "error": f"unknown skill: {skill_name}"}
+
+        if wait:
+            try:
+                result = handler(self, parameters)
+                return {"ok": True, "result": result}
+            except Exception as exc:
+                return {"ok": False, "error": str(exc)}
+        else:
+            thread = threading.Thread(target=handler, args=(self, parameters), daemon=True)
+            thread.start()
+            return {"ok": True, "status": "started"}
+
 
 class _DiscoveryServer(socketserver.ThreadingUDPServer):
     allow_reuse_address = True
+    agent: SwarmAgent
 
     def __init__(self, server_address, handler_class, agent: SwarmAgent):
         self.agent = agent
@@ -342,6 +414,7 @@ class _DiscoveryServer(socketserver.ThreadingUDPServer):
 class _ControlServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
+    agent: SwarmAgent
 
     def __init__(self, server_address, handler_class, agent: SwarmAgent):
         self.agent = agent
@@ -357,7 +430,8 @@ class _DiscoveryHandler(socketserver.BaseRequestHandler):
             return
         if msg.get("service") != DISCOVERY_MESSAGE["service"]:
             return
-        payload = self.server.agent._announce_payload()
+        server = cast(_DiscoveryServer, self.server)
+        payload = server.agent._announce_payload()
         sock.sendto(_encode_message(payload), self.client_address)
 
 
@@ -370,8 +444,14 @@ class _ControlHandler(socketserver.BaseRequestHandler):
         if not msg:
             self.request.sendall(_encode_message({"ok": False, "error": "invalid request"}) + b"\n")
             return
-        if msg.get("type") != RUN_PLAN_TYPE:
-            self.request.sendall(_encode_message({"ok": False, "error": "unknown command"}) + b"\n")
-            return
-        response = self.server.agent._handle_plan_request(msg)
+        
+        server = cast(_ControlServer, self.server)
+        msg_type = msg.get("type")
+        if msg_type == RUN_PLAN_TYPE:
+            response = server.agent._handle_plan_request(msg)
+        elif msg_type == ACTIVATE_SKILL_TYPE:
+            response = server.agent._handle_skill_request(msg)
+        else:
+            response = {"ok": False, "error": "unknown command"}
+        
         self.request.sendall(_encode_message(response) + b"\n")
